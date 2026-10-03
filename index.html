@@ -1,966 +1,754 @@
 <!DOCTYPE html>
-<html lang="hu" class="dark">
+<html lang="hu">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ultra-Stabil Virtuális Egér (Single Hand High Precision)</title>
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#f0fdf4',
-              400: '#4ade80',
-              500: '#22c55e',
-              600: '#16a34a',
-              700: '#15803d',
-              900: '#14532d',
-              950: '#052e16',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  
-  <!-- FontAwesome Icons CDN -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  
-  <!-- MediaPipe CDN Dependencies -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolyglotMaster - Nyelvtanuló Alkalmazás</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    body {
-      font-family: 'Inter', sans-serif;
-      user-select: none;
-      overflow-x: hidden;
-    }
-
-    /* Custom Virtual Precision Pointer */
-    #virtual-cursor {
-      pointer-events: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 9999;
-      transform: translate(-50%, -50%);
-      will-change: transform, left, top;
-      transition: width 0.12s ease, height 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
-    }
-
-    #virtual-cursor.clicking {
-      transform: translate(-50%, -50%) scale(0.8);
-      background-color: rgba(239, 68, 68, 0.9) !important;
-      border-color: #f87171 !important;
-      box-shadow: 0 0 25px rgba(239, 68, 68, 0.9);
-    }
-
-    /* Target Balloon Pulse Animation */
-    @keyframes floatPulse {
-      0%, 100% { transform: scale(1) translateY(0px); }
-      50% { transform: scale(1.06) translateY(-4px); }
-    }
-
-    .target-balloon {
-      animation: floatPulse 2s infinite ease-in-out;
-    }
-
-    /* Custom Dark Scrollbars */
-    ::-webkit-scrollbar {
-      width: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #090d16;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #1e293b;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #334155;
-    }
-  </style>
-</head>
-
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between relative selection:bg-brand-500 selection:text-white">
-
-  <!-- Top Info Security Banner -->
-  <div class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-2 shadow-md z-40">
-    <div class="flex items-center gap-2 max-w-5xl">
-      <i class="fa-solid fa-shield-halved text-emerald-400 text-base flex-shrink-0"></i>
-      <span>
-        <strong>Böngésző Biztonsági Információ:</strong> A webes sandbox védelem miatt a böngészők nem vezérelhetik az operációs rendszer (Windows/macOS) egérmutatóját. Ez a webalkalmazás egy <em>ultra-stabil belső virtuális egérmutatót</em> szimulál a weboldalon belüli kattintáshoz, rajzoláshoz és mozgáshoz!
-      </span>
-    </div>
-    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white px-2 py-1 rounded text-xs bg-slate-800 hover:bg-slate-700 transition">
-      <i class="fa-solid fa-xmark"></i> Bezárás
-    </button>
-  </div>
-
-  <!-- Ultra-Precision Virtual Cursor Graphic -->
-  <div id="virtual-cursor" class="w-7 h-7 rounded-full border-2 border-brand-400 bg-brand-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(74,222,128,0.6)]">
-    <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
-    <div id="cursor-pulse" class="absolute w-full h-full rounded-full border border-brand-400 animate-ping opacity-30"></div>
-  </div>
-
-  <!-- Header Section -->
-  <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30 px-4 sm:px-6 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
-        <i class="fa-solid fa-hand-pointer text-slate-950 font-bold text-xl"></i>
-      </div>
-      <div>
-        <h1 class="font-extrabold text-base sm:text-lg text-white leading-tight tracking-tight flex items-center gap-2">
-          Ultra-Stabil Virtuális Egér <span class="text-[10px] bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-md border border-brand-500/30">1 KÉZ v2.0</span>
-        </h1>
-        <p class="text-xs text-slate-400 hidden sm:block">Alacsony FPS-re optimális kézkövető AI adaptív szűréssel</p>
-      </div>
-    </div>
-
-    <!-- Active Navigation Tabs -->
-    <nav class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs sm:text-sm">
-      <button id="tab-btn-paint" onclick="switchTab('paint')" class="tab-btn px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-2 bg-brand-600 text-white shadow">
-        <i class="fa-solid fa-palette"></i> <span class="hidden md:inline">Rajztábla</span>
-      </button>
-      <button id="tab-btn-targets" onclick="switchTab('targets')" class="tab-btn px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white">
-        <i class="fa-solid fa-bullseye"></i> <span class="hidden md:inline">Célpont Játék</span>
-      </button>
-      <button id="tab-btn-drag" onclick="switchTab('drag')" class="tab-btn px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white">
-        <i class="fa-solid fa-hand-back-fist"></i> <span class="hidden md:inline">Húzd és Ejtse</span>
-      </button>
-      <button id="tab-btn-widgets" onclick="switchTab('widgets')" class="tab-btn px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white">
-        <i class="fa-solid fa-sliders"></i> <span class="hidden md:inline">UI Teszt</span>
-      </button>
-    </nav>
-  </header>
-
-  <!-- Main Application Grid -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-    <!-- Interactive Canvas & Playground Section (3 Columns) -->
-    <section class="lg:col-span-3 flex flex-col gap-4">
-
-      <!-- TAB 1: PAINT CANVAS -->
-      <div id="tab-paint" class="tab-content flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
-        <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <div class="flex items-center gap-3">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Színválasztó:</span>
-            <div class="flex items-center gap-2" id="color-picker-group">
-              <button onclick="setBrushColor('#22c55e')" class="color-btn w-6 h-6 rounded-full bg-emerald-500 ring-2 ring-white ring-offset-2 ring-offset-slate-900 transition" data-color="#22c55e"></button>
-              <button onclick="setBrushColor('#3b82f6')" class="color-btn w-6 h-6 rounded-full bg-blue-500 transition" data-color="#3b82f6"></button>
-              <button onclick="setBrushColor('#ef4444')" class="color-btn w-6 h-6 rounded-full bg-red-500 transition" data-color="#ef4444"></button>
-              <button onclick="setBrushColor('#eab308')" class="color-btn w-6 h-6 rounded-full bg-yellow-500 transition" data-color="#eab308"></button>
-              <button onclick="setBrushColor('#a855f7')" class="color-btn w-6 h-6 rounded-full bg-purple-500 transition" data-color="#a855f7"></button>
-              <button onclick="setBrushColor('#ffffff')" class="color-btn w-6 h-6 rounded-full bg-white transition" data-color="#ffffff"></button>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-4">
-            <label class="text-xs text-slate-300 flex items-center gap-2">
-              <i class="fa-solid fa-pen-nib text-brand-400"></i>
-              <span>Vastagság:</span>
-              <input type="range" id="brush-size" min="2" max="30" value="8" class="w-24 accent-brand-500 cursor-pointer" />
-            </label>
-            <button onclick="clearPaintCanvas()" class="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-bold transition flex items-center gap-1.5 border border-red-500/30">
-              <i class="fa-solid fa-trash"></i> Törlés
-            </button>
-          </div>
-        </div>
-
-        <div class="relative flex-1 min-h-[420px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center">
-          <canvas id="paint-canvas" class="w-full h-full cursor-crosshair touch-none"></canvas>
-          <div class="absolute bottom-3 left-3 bg-slate-900/85 backdrop-blur px-3 py-2 rounded-lg border border-slate-800 text-xs text-slate-300 pointer-events-none flex items-center gap-2 shadow">
-            <i class="fa-solid fa-lightbulb text-amber-400 text-sm"></i>
-            <span>Nyitott kéz = <strong>Kurzor Mozgatás</strong> • Ökölbe szorítás = <strong>Rajzolás (Bal Klikk)</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 2: TARGET POPPING MINIGAME -->
-      <div id="tab-targets" class="tab-content hidden flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
-        <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <div class="flex items-center gap-8">
-            <div>
-              <span class="text-xs text-slate-400 block uppercase font-bold tracking-wider">Pontszám</span>
-              <span id="target-score" class="text-3xl font-extrabold text-brand-400 font-mono">0</span>
-            </div>
-            <div>
-              <span class="text-xs text-slate-400 block uppercase font-bold tracking-wider">Eltalált Célpontok</span>
-              <span id="target-count" class="text-3xl font-extrabold text-white font-mono">0</span>
-            </div>
-          </div>
-          <button onclick="resetTargetGame()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center gap-2">
-            <i class="fa-solid fa-rotate-right"></i> Újrajáték
-          </button>
-        </div>
-
-        <div id="target-arena" class="relative flex-1 min-h-[420px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner">
-          <div class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-800/40 font-black text-5xl sm:text-6xl select-none text-center px-4">
-            KATTINTS ÖKÖLLEL A LUFIKRA
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 3: DRAG AND DROP PANELS -->
-      <div id="tab-drag" class="tab-content hidden flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
-        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs text-slate-300 flex items-center gap-2">
-          <i class="fa-solid fa-circle-info text-brand-400 text-sm flex-shrink-0"></i>
-          <span>
-            <strong>Húzás és Ejtés Teszt:</strong> Mozgasd a kurzort a kártya fölé, <strong>szorítsd ökölbe a kezed</strong> a megragadáshoz, mozgasd a kívánt helyre, majd nyisd ki a kezed az elengedéshez!
-          </span>
-        </div>
-
-        <div id="drag-arena" class="relative flex-1 min-h-[420px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 p-6 flex flex-wrap gap-4 items-start">
-          <div class="draggable-card cursor-grab active:cursor-grabbing bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 p-4 rounded-xl shadow-lg w-60 flex flex-col gap-2 transition-shadow hover:shadow-brand-500/20 select-none">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-extrabold text-brand-400 uppercase tracking-widest">Stabilizált Kártya #1</span>
-              <i class="fa-solid fa-grip-vertical text-slate-500"></i>
-            </div>
-            <h3 class="font-bold text-white text-sm">Adaptive EMA Filter</h3>
-            <p class="text-xs text-slate-400 leading-relaxed">Mikromozgások kiszűrése mozdulatlan kéz esetén, gyors reagálás mozgáskor.</p>
-          </div>
-
-          <div class="draggable-card cursor-grab active:cursor-grabbing bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 p-4 rounded-xl shadow-lg w-60 flex flex-col gap-2 transition-shadow hover:shadow-brand-500/20 select-none">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-extrabold text-blue-400 uppercase tracking-widest">Stabilizált Kártya #2</span>
-              <i class="fa-solid fa-grip-vertical text-slate-500"></i>
-            </div>
-            <h3 class="font-bold text-white text-sm">No-Jump Horgony</h3>
-            <p class="text-xs text-slate-400 leading-relaxed">Az ökölszorításkor a mutatóujj tőre horgonyoz, így megszünteti a kurzorugrást.</p>
-          </div>
-
-          <div class="draggable-card cursor-grab active:cursor-grabbing bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 p-4 rounded-xl shadow-lg w-60 flex flex-col gap-2 transition-shadow hover:shadow-brand-500/20 select-none">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-extrabold text-purple-400 uppercase tracking-widest">Stabilizált Kártya #3</span>
-              <i class="fa-solid fa-grip-vertical text-slate-500"></i>
-            </div>
-            <h3 class="font-bold text-white text-sm">Hysteresis Clicking</h3>
-            <p class="text-xs text-slate-400 leading-relaxed">Biztonsági sáv megakadályozza az akadozó/vibráló kattintásokat gyenge kamerán.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 4: STANDARD UI FORM CONTROLS -->
-      <div id="tab-widgets" class="tab-content hidden flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
-        <h2 class="text-base font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-sliders text-brand-400"></i> Standard Webes UI Elemek Kattintási Tesztje
-        </h2>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col gap-3">
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Interaktív Gombok</h3>
-            <button onclick="incrementCounter()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold rounded-lg shadow transition flex items-center justify-center gap-2">
-              <i class="fa-solid fa-plus-circle"></i> Számláló Növelése (<span id="ui-counter" class="font-mono">0</span>)
-            </button>
-            <button onclick="toggleThemeBox()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg border border-slate-700 transition flex items-center justify-center gap-2">
-              <i class="fa-solid fa-bolt text-amber-400"></i> Háttérffekt Váltása
-            </button>
-          </div>
-
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col gap-3">
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Kapcsolók & Beállítások</h3>
-            
-            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700 transition">
-              <span class="text-xs font-semibold text-slate-300 flex items-center gap-2">
-                <i class="fa-solid fa-volume-high text-brand-400"></i> Hangvisszajelzés kattintáskor
-              </span>
-              <input type="checkbox" id="sound-toggle" checked class="w-4 h-4 accent-brand-500 rounded cursor-pointer" />
-            </label>
-
-            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700 transition">
-              <span class="text-xs font-semibold text-slate-300 flex items-center gap-2">
-                <i class="fa-solid fa-network-wired text-brand-400"></i> Kéz Vázpont Kirajzolása
-              </span>
-              <input type="checkbox" id="skeleton-toggle" checked class="w-4 h-4 accent-brand-500 rounded cursor-pointer" />
-            </label>
-          </div>
-        </div>
-
-        <div id="test-banner-box" class="bg-slate-950 p-5 rounded-xl border border-slate-800 text-center transition-colors duration-300">
-          <span class="text-xs text-slate-400 uppercase tracking-wider font-bold block mb-1">Teszt Visszajelző Status</span>
-          <p id="test-status-text" class="text-white font-semibold">Kattints a fenti gombokra a virtuális egérrel!</p>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- Right Sidebar: Camera Feed, AI HUD & Tuning Controls (1 Column) -->
-    <aside class="flex flex-col gap-4">
-      
-      <!-- Camera Preview & Resolution Selector Box -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-            <i class="fa-solid fa-video text-brand-400"></i> Kamera Élő Kép
-          </span>
-          <span id="fps-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-brand-500/20 text-brand-400 border border-brand-500/30 font-bold">0 FPS</span>
-        </div>
-
-        <div class="relative w-full aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
-          <!-- Hidden HTML5 Video Element -->
-          <video id="webcam" class="hidden" playsinline></video>
-          
-          <!-- Mirrored Overlay Canvas -->
-          <canvas id="camera-canvas" class="w-full h-full object-cover -scale-x-100"></canvas>
-
-          <!-- Loader Screen -->
-          <div id="camera-loader" class="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center gap-2 text-center p-4">
-            <i class="fa-solid fa-circle-notch animate-spin text-brand-400 text-3xl"></i>
-            <span class="text-xs text-slate-300 font-semibold">MediaPipe AI & Kamera indítása...</span>
-          </div>
-        </div>
-
-        <!-- Controls: Resolution Dropdown & Camera Toggle -->
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="text-[10px] font-bold text-slate-400 block mb-1 uppercase">Felbontás</label>
-            <select id="res-selector" onchange="changeCameraResolution()" class="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 rounded-lg p-2 focus:outline-none focus:border-brand-500 font-semibold">
-              <option value="320x240" selected>320x240 (Leggyorsabb)</option>
-              <option value="640x480">640x480 (Részletes)</option>
-            </select>
-          </div>
-          <div class="flex items-end">
-            <button id="cam-toggle-btn" onclick="toggleCamera()" class="w-full py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-power-off"></i> Leállítás
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Stabilization & Diagnostics Tuning Controls -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-3.5">
-        <span class="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-          <i class="fa-solid fa-sliders text-brand-400"></i> Stabilizációs Finomhangolás
-        </span>
-
-        <!-- Live Gesture Badge -->
-        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
-          <span class="text-xs text-slate-400 font-medium">Aktuális Állapot:</span>
-          <span id="gesture-state-badge" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">
-            Keresés...
-          </span>
-        </div>
-
-        <!-- Fist Compression Ratio Metric Bar -->
-        <div class="flex flex-col gap-1">
-          <div class="flex justify-between text-xs font-semibold">
-            <span class="text-slate-400">Ököl Összenyomás Ratio:</span>
-            <span id="fist-ratio-text" class="font-mono text-brand-400">0.00</span>
-          </div>
-          <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-            <div id="fist-ratio-bar" class="h-full bg-brand-500 transition-all duration-75 w-0"></div>
-          </div>
-        </div>
-
-        <!-- Precision Sliders -->
-        <div class="pt-2 border-t border-slate-800/80 flex flex-col gap-3">
-          <!-- EMA Alpha / Smoothing -->
-          <div>
-            <div class="flex justify-between text-xs text-slate-300 font-medium mb-1">
-              <span>Kurzor Simítás (EMA):</span>
-              <span id="smoothing-val" class="font-mono text-brand-400 font-bold">0.25</span>
-            </div>
-            <input type="range" id="cursor-smoothing" min="0.05" max="0.7" step="0.05" value="0.25" class="w-full accent-brand-500 cursor-pointer" />
-            <span class="text-[10px] text-slate-500 block">Kisebb = Sima/Lassabb • Nagyobb = Gyorsabb/Nyers</span>
-          </div>
-
-          <!-- Deadzone Threshold -->
-          <div>
-            <div class="flex justify-between text-xs text-slate-300 font-medium mb-1">
-              <span>Holtsáv (Deadzone Remegésszűrő):</span>
-              <span id="deadzone-val" class="font-mono text-brand-400 font-bold">2.5 px</span>
-            </div>
-            <input type="range" id="deadzone-range" min="0" max="10" step="0.5" value="2.5" class="w-full accent-brand-500 cursor-pointer" />
-            <span class="text-[10px] text-slate-500 block">Kiszűri a kéz apró mikromozgásait és remegését</span>
-          </div>
-
-          <!-- Virtual Mousepad Range / Sensitivity -->
-          <div>
-            <div class="flex justify-between text-xs text-slate-300 font-medium mb-1">
-              <span>Munkatartomány (Érzékenység):</span>
-              <span id="padmargin-val" class="font-mono text-brand-400 font-bold">18%</span>
-            </div>
-            <input type="range" id="padmargin-range" min="5" max="30" step="1" value="18" class="w-full accent-brand-500 cursor-pointer" />
-            <span class="text-[10px] text-slate-500 block">Kamera szélének levágása a könnyű sarokelérésért</span>
-          </div>
-
-          <!-- Fist Threshold -->
-          <div>
-            <div class="flex justify-between text-xs text-slate-300 font-medium mb-1">
-              <span>Ököl Kattintás Küszöb:</span>
-              <span id="threshold-val" class="font-mono text-brand-400 font-bold">1.20</span>
-            </div>
-            <input type="range" id="fist-threshold" min="0.8" max="1.6" step="0.05" value="1.20" class="w-full accent-brand-500 cursor-pointer" />
-          </div>
-        </div>
-      </div>
-
-    </aside>
-
-  </main>
-
-  <!-- Footer -->
-  <footer class="bg-slate-900 border-t border-slate-800 py-3 px-4 text-center text-xs text-slate-500">
-    Ultra-Stabil Virtuális Egér • HTML5 / MediaPipe Hands AI / Tailwind CSS • 1 Kézes Magas Precizitású Követés
-  </footer>
-
-  <script>
-    /* Global Application State */
-    let cameraInstance = null;
-    let isCameraActive = false;
-    let handsDetector = null;
-
-    // Single Hand Coordinates and Filtering
-    let rawTargetX = window.innerWidth / 2;
-    let rawTargetY = window.innerHeight / 2;
-    let lastFilteredX = window.innerWidth / 2;
-    let lastFilteredY = window.innerHeight / 2;
-    let smoothCursorX = window.innerWidth / 2;
-    let smoothCursorY = window.innerHeight / 2;
-
-    // Hysteresis Fist Click State Tracker
-    let isFistActive = false;
-    let activeHoveredElement = null;
-    let activeDraggedCard = null;
-    let dragOffsetX = 0;
-    let dragOffsetY = 0;
-
-    // Canvas Context & Painting
-    let paintCanvas = null;
-    let paintCtx = null;
-    let isPainting = false;
-    let currentBrushColor = '#22c55e';
-
-    // Game Variables
-    let gameScore = 0;
-    let targetsPopped = 0;
-
-    // FPS Meter
-    let lastFrameTime = performance.now();
-    let frameCount = 0;
-
-    // Web Audio Synthesizer
-    let audioCtx = null;
-
-    function playClickSound(frequency = 650, duration = 0.08) {
-      const soundEnabled = document.getElementById('sound-toggle').checked;
-      if (!soundEnabled) return;
-
-      try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + duration);
-
-        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-      } catch (e) {
-        console.warn('Audio playback inhibited', e);
-      }
-    }
-
-    /* DOM Initialization */
-    window.addEventListener('DOMContentLoaded', () => {
-      initPaintCanvas();
-      initTargetGame();
-      initMediaPipe();
-
-      // Setup Tuning Sliders Event Listeners
-      document.getElementById('fist-threshold').addEventListener('input', (e) => {
-        document.getElementById('threshold-val').textContent = parseFloat(e.target.value).toFixed(2);
-      });
-      document.getElementById('cursor-smoothing').addEventListener('input', (e) => {
-        document.getElementById('smoothing-val').textContent = parseFloat(e.target.value).toFixed(2);
-      });
-      document.getElementById('deadzone-range').addEventListener('input', (e) => {
-        document.getElementById('deadzone-val').textContent = `${parseFloat(e.target.value).toFixed(1)} px`;
-      });
-      document.getElementById('padmargin-range').addEventListener('input', (e) => {
-        document.getElementById('padmargin-val').textContent = `${e.target.value}%`;
-      });
-
-      window.addEventListener('resize', handleWindowResize);
-      requestAnimationFrame(renderLoop);
-    });
-
-    function handleWindowResize() {
-      if (paintCanvas) {
-        const rect = paintCanvas.parentElement.getBoundingClientRect();
-        const tempImage = paintCtx.getImageData(0, 0, paintCanvas.width, paintCanvas.height);
-        paintCanvas.width = rect.width;
-        paintCanvas.height = rect.height;
-        paintCtx.putImageData(tempImage, 0, 0);
-      }
-    }
-
-    function initMediaPipe() {
-      const videoElement = document.getElementById('webcam');
-      const canvasElement = document.getElementById('camera-canvas');
-      const canvasCtx = canvasElement.getContext('2d');
-      const loader = document.getElementById('camera-loader');
-
-      handsDetector = new Hands({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-      });
-
-      // STRICT SINGLE HAND FOCUS for Maximum FPS and Precision
-      handsDetector.setOptions({
-        maxNumHands: 1,
-        modelComplexity: 0, // Lite Model for low latency
-        minDetectionConfidence: 0.55,
-        minTrackingConfidence: 0.55
-      });
-
-      handsDetector.onResults((results) => {
-        if (loader.style.display !== 'none') {
-          loader.style.display = 'none';
-        }
-
-        // Calculate FPS
-        frameCount++;
-        const now = performance.now();
-        if (now - lastFrameTime >= 1000) {
-          document.getElementById('fps-badge').textContent = `${frameCount} FPS`;
-          frameCount = 0;
-          lastFrameTime = now;
-        }
-
-        // Render Mirror Canvas Frame
-        canvasElement.width = videoElement.videoWidth || 320;
-        canvasElement.height = videoElement.videoHeight || 240;
-
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-        const showSkeleton = document.getElementById('skeleton-toggle').checked;
-
-        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-          const landmarks = results.multiHandLandmarks[0];
-
-          if (showSkeleton) {
-            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#22c55e', lineWidth: 2 });
-            drawLandmarks(canvasCtx, landmarks, { color: '#ef4444', lineWidth: 1, radius: 3 });
-          }
-
-          processSingleHandLandmarks(landmarks);
-        } else {
-          // No hand detected in frame
-          updateGestureBadge('Keresés...', 'slate');
-          document.getElementById('fist-ratio-bar').style.width = '0%';
-          document.getElementById('fist-ratio-text').textContent = '0.00';
-          
-          if (isFistActive) {
-            triggerMouseUp(smoothCursorX, smoothCursorY);
-            isFistActive = false;
-          }
-        }
-        canvasCtx.restore();
-      });
-
-      startCameraStream(320, 240);
-    }
-
-    function startCameraStream(width, height) {
-      const videoElement = document.getElementById('webcam');
-      if (cameraInstance) {
-        cameraInstance.stop();
-      }
-
-      cameraInstance = new Camera(videoElement, {
-        onFrame: async () => {
-          if (isCameraActive) {
-            await handsDetector.send({ image: videoElement });
-          }
-        },
-        width: width,
-        height: height
-      });
-
-      isCameraActive = true;
-      cameraInstance.start().catch((err) => {
-        console.error('Camera stream initialization failed:', err);
-        const loader = document.getElementById('camera-loader');
-        loader.innerHTML = `<span class="text-xs text-red-400 font-semibold">Hiba a kamera elérésében!<br>${err.message}</span>`;
-      });
-    }
-
-    function changeCameraResolution() {
-      const resVal = document.getElementById('res-selector').value;
-      const [w, h] = resVal.split('x').map(Number);
-      document.getElementById('camera-loader').style.display = 'flex';
-      startCameraStream(w, h);
-    }
-
-    function toggleCamera() {
-      const btn = document.getElementById('cam-toggle-btn');
-      if (isCameraActive) {
-        isCameraActive = false;
-        if (cameraInstance) cameraInstance.stop();
-        btn.innerHTML = `<i class="fa-solid fa-play"></i> Indítás`;
-        btn.classList.replace('bg-brand-600', 'bg-emerald-600');
-        document.getElementById('camera-loader').style.display = 'flex';
-        document.getElementById('camera-loader').querySelector('span').textContent = 'Kamera Kikapcsolva';
-      } else {
-        isCameraActive = true;
-        const resVal = document.getElementById('res-selector').value;
-        const [w, h] = resVal.split('x').map(Number);
-        startCameraStream(w, h);
-        btn.innerHTML = `<i class="fa-solid fa-power-off"></i> Leállítás`;
-        btn.classList.replace('bg-emerald-600', 'bg-brand-600');
-      }
-    }
-
-    function processSingleHandLandmarks(landmarks) {
-      // Landmarks:
-      // 0: Wrist, 5: Index MCP Knuckle, 9: Middle MCP Knuckle, 8: Index Tip
-      const wrist = landmarks[0];
-      const middleMCP = landmarks[9];
-
-      // Calculate Palm Reference Distance
-      const palmSize = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y, middleMCP.z - wrist.z);
-
-      // Average Fingertip Compression Distance
-      const fingerTips = [8, 12, 16, 20];
-      let totalTipDist = 0;
-      for (let tipIdx of fingerTips) {
-        const tip = landmarks[tipIdx];
-        totalTipDist += Math.hypot(tip.x - wrist.x, tip.y - wrist.y, tip.z - wrist.z);
-      }
-      const avgTipDist = totalTipDist / fingerTips.length;
-      const compressionRatio = avgTipDist / (palmSize || 0.001);
-
-      // UI Meter Updates
-      document.getElementById('fist-ratio-text').textContent = compressionRatio.toFixed(2);
-      const ratioBarPercent = Math.min(100, Math.max(0, (compressionRatio / 2.0) * 100));
-      document.getElementById('fist-ratio-bar').style.width = `${ratioBarPercent}%`;
-
-      // HYSTERESIS FIST CLICK DETECTION
-      const fistOnThreshold = parseFloat(document.getElementById('fist-threshold').value);
-      const hysteresisGap = 0.12; // Safety gap to avoid click flickering on low FPS
-
-      if (!isFistActive && compressionRatio < fistOnThreshold) {
-        isFistActive = true;
-        triggerMouseDown(smoothCursorX, smoothCursorY);
-      } else if (isFistActive && compressionRatio > (fistOnThreshold + hysteresisGap)) {
-        isFistActive = false;
-        triggerMouseUp(smoothCursorX, smoothCursorY);
-      }
-
-      // NO-JUMP ANCHOR SELECTION:
-      // Always track Landmark 5 (Index MCP Knuckle) or Landmark 9 (Palm Center).
-      // Because Knuckles do NOT drop when making a fist, this eliminates cursor jumps!
-      const cursorLandmark = landmarks[5]; // Index MCP Knuckle
-
-      // VIRTUAL MOUSEPAD SENSITIVITY MAPPING
-      // Map inner sub-rectangle [margin, 1 - margin] to screen coordinates
-      const marginPct = parseFloat(document.getElementById('padmargin-range').value) / 100.0;
-      const minX = marginPct;
-      const maxX = 1.0 - marginPct;
-      const minY = marginPct;
-      const maxY = 1.0 - marginPct;
-
-      // Horizontally mirror X for intuitive webcam movement
-      const normX = 1.0 - cursorLandmark.x;
-      const normY = cursorLandmark.y;
-
-      const clampedX = Math.max(minX, Math.min(maxX, normX));
-      const clampedY = Math.max(minY, Math.min(maxY, normY));
-
-      rawTargetX = ((clampedX - minX) / (maxX - minX)) * window.innerWidth;
-      rawTargetY = ((clampedY - minY) / (maxY - minY)) * window.innerHeight;
-
-      // DEADZONE MICRO-TREMOR FILTER
-      const deadzonePx = parseFloat(document.getElementById('deadzone-range').value);
-      const distFromLast = Math.hypot(rawTargetX - lastFilteredX, rawTargetY - lastFilteredY);
-
-      if (distFromLast > deadzonePx) {
-        lastFilteredX = rawTargetX;
-        lastFilteredY = rawTargetY;
-      }
-
-      // Update Live UI Status
-      if (isFistActive) {
-        updateGestureBadge('ÖKÖL (KATTINTÁS)', 'red');
-      } else {
-        updateGestureBadge('MOZGATÁS', 'brand');
-      }
-    }
-
-    function updateGestureBadge(text, color) {
-      const badge = document.getElementById('gesture-state-badge');
-      badge.textContent = text;
-      
-      if (color === 'red') {
-        badge.className = 'px-2.5 py-1 rounded-lg text-xs font-extrabold bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse';
-      } else if (color === 'brand') {
-        badge.className = 'px-2.5 py-1 rounded-lg text-xs font-extrabold bg-brand-500/20 text-brand-400 border border-brand-500/40';
-      } else {
-        badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700';
-      }
-    }
-
-    function renderLoop() {
-      // ADAPTIVE EMA SMOOTHING
-      const baseAlpha = parseFloat(document.getElementById('cursor-smoothing').value);
-      
-      // Speed-adaptive responsiveness: fast movement reduces latency, slow movement increases stability
-      const dist = Math.hypot(lastFilteredX - smoothCursorX, lastFilteredY - smoothCursorY);
-      const speedRatio = Math.min(1.0, dist / 120.0);
-      const effectiveAlpha = baseAlpha + speedRatio * (0.85 - baseAlpha);
-
-      smoothCursorX += (lastFilteredX - smoothCursorX) * effectiveAlpha;
-      smoothCursorY += (lastFilteredY - smoothCursorY) * effectiveAlpha;
-
-      // Position Virtual Cursor Element
-      const cursorEl = document.getElementById('virtual-cursor');
-      cursorEl.style.left = `${smoothCursorX}px`;
-      cursorEl.style.top = `${smoothCursorY}px`;
-
-      if (isFistActive) {
-        cursorEl.classList.add('clicking');
-      } else {
-        cursorEl.classList.remove('clicking');
-      }
-
-      // Continuous Drag & Paint Actions
-      if (isFistActive) {
-        triggerMouseDrag(smoothCursorX, smoothCursorY);
-      }
-
-      requestAnimationFrame(renderLoop);
-    }
-
-    /* Synthetic DOM Event Simulator */
-    function triggerMouseDown(x, y) {
-      playClickSound(700, 0.08);
-
-      const targetElem = document.elementFromPoint(x, y);
-      activeHoveredElement = targetElem;
-
-      if (targetElem) {
-        const mouseEvt = new MouseEvent('mousedown', {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-          clientX: x,
-          clientY: y,
-          buttons: 1
-        });
-        targetElem.dispatchEvent(mouseEvt);
-
-        if (typeof targetElem.click === 'function' && !targetElem.classList.contains('draggable-card')) {
-          targetElem.click();
-        }
-
-        const card = targetElem.closest('.draggable-card');
-        if (card) {
-          activeDraggedCard = card;
-          const rect = card.getBoundingClientRect();
-          dragOffsetX = x - rect.left;
-          dragOffsetY = y - rect.top;
-          card.style.zIndex = '1000';
-        }
-      }
-
-      if (paintCanvas) {
-        const rect = paintCanvas.getBoundingClientRect();
-        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-          isPainting = true;
-          paintCtx.beginPath();
-          paintCtx.moveTo(x - rect.left, y - rect.top);
-        }
-      }
-    }
-
-    function triggerMouseDrag(x, y) {
-      if (isPainting && paintCanvas) {
-        const rect = paintCanvas.getBoundingClientRect();
-        paintCtx.lineTo(x - rect.left, y - rect.top);
-        paintCtx.strokeStyle = currentBrushColor;
-        paintCtx.lineWidth = document.getElementById('brush-size').value;
-        paintCtx.lineCap = 'round';
-        paintCtx.lineJoin = 'round';
-        paintCtx.stroke();
-      }
-
-      if (activeDraggedCard) {
-        const arenaRect = document.getElementById('drag-arena').getBoundingClientRect();
-        const newLeft = x - arenaRect.left - dragOffsetX;
-        const newTop = y - arenaRect.top - dragOffsetY;
-
-        activeDraggedCard.style.position = 'absolute';
-        activeDraggedCard.style.left = `${Math.max(0, Math.min(arenaRect.width - 160, newLeft))}px`;
-        activeDraggedCard.style.top = `${Math.max(0, Math.min(arenaRect.height - 100, newTop))}px`;
-      }
-    }
-
-    function triggerMouseUp(x, y) {
-      playClickSound(420, 0.06);
-
-      if (activeHoveredElement) {
-        const mouseEvt = new MouseEvent('mouseup', {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-          clientX: x,
-          clientY: y,
-          buttons: 0
-        });
-        activeHoveredElement.dispatchEvent(mouseEvt);
-      }
-
-      if (isPainting) {
-        isPainting = false;
-        if (paintCtx) paintCtx.closePath();
-      }
-
-      if (activeDraggedCard) {
-        activeDraggedCard.style.zIndex = '10';
-        activeDraggedCard = null;
-      }
-
-      activeHoveredElement = null;
-    }
-
-    /* Tab Switcher Logic */
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('bg-brand-600', 'text-white', 'shadow');
-        btn.classList.add('text-slate-400');
-      });
-
-      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
-      activeBtn.classList.add('bg-brand-600', 'text-white', 'shadow');
-      activeBtn.classList.remove('text-slate-400');
-
-      if (tabId === 'paint') {
-        setTimeout(handleWindowResize, 50);
-      }
-    }
-
-    /* Paint Canvas Logic */
-    function initPaintCanvas() {
-      paintCanvas = document.getElementById('paint-canvas');
-      paintCtx = paintCanvas.getContext('2d');
-      handleWindowResize();
-    }
-
-    function setBrushColor(color) {
-      currentBrushColor = color;
-      document.querySelectorAll('.color-btn').forEach(btn => {
-        if (btn.getAttribute('data-color') === color) {
-          btn.classList.add('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-slate-900');
-        } else {
-          btn.classList.remove('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-slate-900');
-        }
-      });
-    }
-
-    function clearPaintCanvas() {
-      if (paintCtx && paintCanvas) {
-        paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
-      }
-    }
-
-    /* Target Popping Minigame */
-    function initTargetGame() {
-      spawnTargetBalloon();
-    }
-
-    function spawnTargetBalloon() {
-      const arena = document.getElementById('target-arena');
-      if (!arena) return;
-
-      const oldBalloons = arena.querySelectorAll('.target-balloon');
-      oldBalloons.forEach(b => b.remove());
-
-      const balloon = document.createElement('button');
-      balloon.className = 'target-balloon absolute w-16 h-16 rounded-full bg-gradient-to-tr from-brand-600 to-emerald-400 border-2 border-white shadow-lg shadow-brand-500/30 flex items-center justify-center text-slate-950 font-black text-xl cursor-pointer hover:scale-110 transition-transform';
-      
-      const maxX = arena.clientWidth - 80;
-      const maxY = arena.clientHeight - 80;
-      const randomX = Math.max(20, Math.floor(Math.random() * maxX));
-      const randomY = Math.max(20, Math.floor(Math.random() * maxY));
-
-      balloon.style.left = `${randomX}px`;
-      balloon.style.top = `${randomY}px`;
-      balloon.innerHTML = `<i class="fa-solid fa-bullseye"></i>`;
-
-      balloon.onclick = (e) => {
-        e.stopPropagation();
-        gameScore += 100;
-        targetsPopped += 1;
-        document.getElementById('target-score').textContent = gameScore;
-        document.getElementById('target-count').textContent = targetsPopped;
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
-        playClickSound(950, 0.1);
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
 
-        balloon.style.transform = 'scale(1.5)';
-        balloon.style.opacity = '0';
-        setTimeout(() => {
-          spawnTargetBalloon();
-        }, 120);
-      };
+        /* 3D Flashcard Animation Styles */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        .transition-transform-500 {
+            transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+        }
 
-      arena.appendChild(balloon);
-    }
+        /* Custom Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
 
-    function resetTargetGame() {
-      gameScore = 0;
-      targetsPopped = 0;
-      document.getElementById('target-score').textContent = '0';
-      document.getElementById('target-count').textContent = '0';
-      spawnTargetBalloon();
-    }
+        /* Toast Notifications Animation */
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .toast-enter {
+            animation: slideInRight 0.3s ease-out forwards;
+        }
+        .toast-exit {
+            animation: fadeOut 0.3s ease-in forwards;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
 
-    /* UI Testing Controls */
-    let counterValue = 0;
-    function incrementCounter() {
-      counterValue++;
-      document.getElementById('ui-counter').textContent = counterValue;
-      updateTestStatus(`Számláló értéke: ${counterValue}`);
-    }
+    <!-- Header Navbar -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3 text-indigo-600 font-bold text-xl cursor-pointer" onclick="app.navigate('dashboard')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-language text-lg"></i>
+                </div>
+                <span>Polyglot<span class="text-slate-800">Master</span></span>
+            </div>
 
-    function toggleThemeBox() {
-      const box = document.getElementById('test-banner-box');
-      if (box.classList.contains('bg-slate-950')) {
-        box.classList.replace('bg-slate-950', 'bg-brand-950/50');
-        box.classList.replace('border-slate-800', 'border-brand-500/40');
-        updateTestStatus('Háttér effekt: Aktív (Smaragdzöld Ragyogás)');
-      } else {
-        box.classList.replace('bg-brand-950/50', 'bg-slate-950');
-        box.classList.replace('border-brand-500/40', 'border-slate-800');
-        updateTestStatus('Háttér effekt: Alapértelmezett');
-      }
-    }
+            <!-- Active Deck Quick Dropdown Selector -->
+            <div id="header-deck-selector" class="hidden items-center gap-2">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">Aktív szótár:</span>
+                <select id="quick-deck-select" onchange="app.switchActiveDeckFromHeader(this.value)" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 py-1.5 px-3 outline-none cursor-pointer">
+                    <!-- Options inserted dynamically -->
+                </select>
+            </div>
+        </div>
+    </header>
 
-    function updateTestStatus(text) {
-      document.getElementById('test-status-text').textContent = text;
-    }
-  </script>
+    <!-- Main App Container -->
+    <main class="flex-grow max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 relative">
+
+        <!-- VIEW 1: Dashboard (Nyelvpárok áttekintése) -->
+        <div id="dashboard-view" class="space-y-8 animate-[fadeIn_0.3s_ease-out]">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 pb-5">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">Saját Szótáraim</h1>
+                    <p class="text-slate-500 text-sm mt-1">Hozz létre és kezelj bármilyen nyelvpárt (pl. Ógörög - Magyar, Német - Magyar)</p>
+                </div>
+                <button onclick="app.openModal('create-deck-modal')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-sm shadow-indigo-200 transition-all font-medium flex items-center gap-2 active:scale-95 whitespace-nowrap">
+                    <i class="fa-solid fa-plus"></i> Új nyelvpár
+                </button>
+            </div>
+
+            <!-- Decks Grid -->
+            <div id="decks-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Deck cards rendered here -->
+            </div>
+            
+            <!-- Empty State for Dashboard -->
+            <div id="empty-dashboard-state" class="hidden flex-col items-center justify-center py-16 text-center">
+                <div class="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-400 text-3xl mb-4 shadow-inner">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-slate-700">Még nincsenek szótáraid</h3>
+                <p class="text-slate-500 mt-1 mb-6 max-w-md text-sm">Kattints az "Új nyelvpár" gombra, hogy elkezdhesd a szavak gyűjtését és tanulását!</p>
+                <button onclick="app.openModal('create-deck-modal')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl transition-all font-medium shadow-sm">
+                    Létrehozás most
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW 2: Deck Editor / Szólista View -->
+        <div id="deck-view" class="hidden space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200/80 pb-5">
+                <div>
+                    <button onclick="app.navigate('dashboard')" class="text-sm font-medium text-slate-400 hover:text-indigo-600 mb-2 flex items-center gap-1.5 transition-colors">
+                        <i class="fa-solid fa-arrow-left"></i> Vissza a szótárakhoz
+                    </button>
+                    <h1 id="deck-title" class="text-2xl sm:text-3xl font-bold text-slate-800">Nyelvpár címe</h1>
+                    <p id="deck-stats" class="text-slate-500 text-sm mt-1">0 kifejezés eltárolva</p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="btn-practice" onclick="app.startPractice()" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-2.5 rounded-xl shadow-sm shadow-emerald-200 transition-all font-medium flex items-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-dumbbell"></i> Kártyás Gyakorlás
+                    </button>
+                </div>
+            </div>
+
+            <!-- Add Word Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 md:p-6">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Új szó felvétele</h3>
+                <form id="add-word-form" onsubmit="app.handleAddWord(event)" class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1 relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-font"></i>
+                        </div>
+                        <input type="text" id="word-term" required placeholder="Idegen kifejezés (pl. λόγος)" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800 placeholder:text-slate-400">
+                    </div>
+                    <div class="flex-1 relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-language"></i>
+                        </div>
+                        <input type="text" id="word-def" required placeholder="Magyar fordítás (pl. szó, beszéd)" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800 placeholder:text-slate-400">
+                    </div>
+                    <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap shadow-sm">
+                        <i class="fa-solid fa-check"></i> Mentés
+                    </button>
+                </form>
+            </div>
+
+            <!-- Words Table / List -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <h3 class="font-bold text-slate-700 text-sm uppercase tracking-wider">Szószótár tartalma</h3>
+                    <div class="relative w-full sm:w-64">
+                        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input type="text" id="search-words" onkeyup="app.filterWords()" placeholder="Keresés..." class="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    </div>
+                </div>
+
+                <div id="words-list" class="divide-y divide-slate-100 max-h-[550px] overflow-y-auto">
+                    <!-- Words rendered dynamically -->
+                </div>
+
+                <!-- Empty Words State -->
+                <div id="empty-words-state" class="hidden flex-col items-center justify-center py-12 text-center p-4">
+                    <i class="fa-regular fa-folder-open text-4xl text-slate-300 mb-3"></i>
+                    <p class="text-slate-500 text-sm font-medium">Még nincsenek szavak ebben a szótárban.</p>
+                    <p class="text-slate-400 text-xs mt-1">Használd a fenti űrlapot az első szavaid felvételéhez!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: Practice Mode (Kártyás Gyakorló Mód) -->
+        <div id="practice-view" class="hidden flex-col items-center max-w-2xl mx-auto space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <!-- Top Controls bar -->
+            <div class="w-full flex justify-between items-center bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-200/80">
+                <button onclick="app.navigate('deck')" class="text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-2 font-medium text-sm">
+                    <i class="fa-solid fa-xmark text-lg"></i> Kilépés
+                </button>
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-4 py-1.5 rounded-full">
+                    Kártya: <span id="practice-progress" class="text-indigo-600">1 / 10</span>
+                </div>
+            </div>
+
+            <!-- Flashcard Container -->
+            <div id="flashcard-container" class="w-full aspect-[4/3] sm:aspect-[16/9] perspective-1000 cursor-pointer select-none" onclick="app.flipCard()">
+                <div id="flashcard-inner" class="w-full h-full relative transition-transform-500 transform-style-3d">
+                    
+                    <!-- Card Front Side -->
+                    <div class="absolute inset-0 w-full h-full backface-hidden bg-white rounded-3xl shadow-md border border-slate-200/80 flex flex-col items-center justify-between p-8 text-center">
+                        <span id="card-lang-front" class="text-xs font-bold uppercase tracking-widest text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full">Kifejezés</span>
+                        <div class="my-auto">
+                            <h2 id="card-term" class="text-3xl sm:text-4xl font-bold text-slate-800 leading-tight">...</h2>
+                        </div>
+                        <p class="text-slate-400 text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate text-slate-300"></i> Kattints vagy koppints a fordításhoz
+                        </p>
+                    </div>
+
+                    <!-- Card Back Side -->
+                    <div class="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 rounded-3xl shadow-lg flex flex-col items-center justify-between p-8 text-center text-white">
+                        <span id="card-lang-back" class="text-xs font-bold uppercase tracking-widest text-indigo-200 bg-white/10 px-3 py-1 rounded-full">Magyar fordítás</span>
+                        <div class="my-auto">
+                            <h2 id="card-def" class="text-3xl sm:text-4xl font-bold leading-tight">...</h2>
+                        </div>
+                        <p class="text-indigo-200/80 text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate text-indigo-300"></i> Értékeld a tudásodat alább
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Navigation Controls (Visible after card flip) -->
+            <div id="practice-controls" class="w-full flex gap-4 transition-all duration-300 opacity-0 pointer-events-none">
+                <button onclick="app.nextCard(false)" class="flex-1 bg-white border-2 border-rose-100 text-rose-600 hover:bg-rose-50 py-3.5 rounded-2xl font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-xmark text-lg"></i> Nem tudtam
+                </button>
+                <button onclick="app.nextCard(true)" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-2xl font-bold transition-all shadow-md shadow-emerald-200 flex items-center justify-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-check text-lg"></i> Tudtam
+                </button>
+            </div>
+
+            <!-- End of Practice Summary Screen -->
+            <div id="practice-end-screen" class="hidden w-full bg-white rounded-3xl shadow-sm border border-slate-200/80 p-8 sm:p-12 text-center">
+                <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-6 shadow-inner">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Gyakorlás vége!</h2>
+                <p class="text-slate-500 text-sm mb-8">Szép munka! Átnézted az összes kártyát ebben a szótárban.</p>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button onclick="app.startPractice()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm">
+                        <i class="fa-solid fa-rotate-right mr-2"></i> Újra most
+                    </button>
+                    <button onclick="app.navigate('deck')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl font-medium transition-colors">
+                        Vissza a szótárhoz
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: Create Deck -->
+    <div id="create-deck-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100 animate-[fadeIn_0.2s_ease-out]">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800">Új nyelvpár létrehozása</h3>
+                <button onclick="app.closeModal('create-deck-modal')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="app.handleCreateDeck(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Nyelvpár megnevezése</label>
+                    <input type="text" id="new-deck-name" required placeholder="pl. Ógörög - Magyar, vagy Német Igék" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="app.closeModal('create-deck-modal')" class="px-5 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                        Mégse
+                    </button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl shadow-sm transition-colors font-medium">
+                        Létrehozás
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm Delete Deck -->
+    <div id="confirm-delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100 p-6 text-center animate-[fadeIn_0.2s_ease-out]">
+            <div class="w-14 h-14 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Szótár törlése</h3>
+            <p class="text-slate-500 text-sm mb-6">Biztosan törölni szeretnéd ezt a nyelvpárt az összes benne lévő szóval együtt?</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="app.closeModal('confirm-delete-modal')" class="px-5 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                    Mégse
+                </button>
+                <button id="confirm-delete-btn" class="bg-rose-600 hover:bg-rose-700 text-white px-6 py-2.5 rounded-xl shadow-sm transition-colors font-medium">
+                    Törlés
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // LocalStorage Key
+        const STORAGE_KEY = 'polyglot_master_storage_v1';
+
+        // Default Initial Data (including sample Ancient Greek deck)
+        const DEFAULT_DATA = {
+            decks: [
+                {
+                    id: 'deck_greek_sample',
+                    name: 'Ógörög - Magyar',
+                    createdAt: Date.now() - 100000,
+                    words: [
+                        { id: 'w1', term: 'λόγος (logosz)', def: 'szó, beszéd, értelem', addedAt: Date.now() },
+                        { id: 'w2', term: 'φιλοσοφία (filoszofia)', def: 'a bölcsesség szerete', addedAt: Date.now() },
+                        { id: 'w3', term: 'ἀρετή (areté)', def: 'erény, kiválóság', addedAt: Date.now() },
+                        { id: 'w4', term: 'ἄνθρωπος (anthróposz)', def: 'ember', addedAt: Date.now() },
+                        { id: 'w5', term: 'ψυχή (pszükhé)', def: 'lélek, élet', addedAt: Date.now() }
+                    ]
+                },
+                {
+                    id: 'deck_german_sample',
+                    name: 'Német - Magyar',
+                    createdAt: Date.now() - 50000,
+                    words: [
+                        { id: 'w6', term: 'das Buch', def: 'a könyv', addedAt: Date.now() },
+                        { id: 'w7', term: 'die Sprache', def: 'a nyelv', addedAt: Date.now() }
+                    ]
+                }
+            ]
+        };
+
+        window.app = {
+            data: { decks: [] },
+            currentDeckId: null,
+            currentView: 'dashboard',
+            pendingDeleteDeckId: null,
+
+            // Practice Mode Variables
+            practiceWords: [],
+            currentCardIndex: 0,
+            isFlipped: false,
+
+            init: function() {
+                this.loadData();
+                this.renderQuickDeckSelector();
+                this.navigate('dashboard');
+            },
+
+            loadData: function() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        this.data = JSON.parse(raw);
+                    } else {
+                        this.data = DEFAULT_DATA;
+                        this.saveData();
+                    }
+                } catch (e) {
+                    console.error("Localstorage loading error:", e);
+                    this.data = DEFAULT_DATA;
+                }
+            },
+
+            saveData: function() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+                } catch (e) {
+                    console.error("Localstorage saving error:", e);
+                    this.showToast("Sikertelen mentés a helyi tárolóba!", "error");
+                }
+            },
+
+            navigate: function(viewName, deckId = null) {
+                // Hide all main views
+                ['dashboard-view', 'deck-view', 'practice-view'].forEach(id => {
+                    const el = document.getElementById(id);
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                });
+
+                this.currentView = viewName;
+                if (deckId) this.currentDeckId = deckId;
+
+                const headerSelector = document.getElementById('header-deck-selector');
+
+                if (viewName === 'dashboard') {
+                    document.getElementById('dashboard-view').classList.remove('hidden');
+                    this.currentDeckId = null;
+                    headerSelector.classList.add('hidden');
+                    headerSelector.classList.remove('flex');
+                    this.renderDashboard();
+                } else if (viewName === 'deck') {
+                    document.getElementById('deck-view').classList.remove('hidden');
+                    document.getElementById('search-words').value = '';
+                    headerSelector.classList.remove('hidden');
+                    headerSelector.classList.add('flex');
+                    this.renderQuickDeckSelector();
+                    this.renderDeck();
+                } else if (viewName === 'practice') {
+                    document.getElementById('practice-view').classList.remove('hidden');
+                    document.getElementById('practice-view').classList.add('flex');
+                    headerSelector.classList.add('hidden');
+                    headerSelector.classList.remove('flex');
+                }
+
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+
+            renderDashboard: function() {
+                const container = document.getElementById('decks-container');
+                const emptyState = document.getElementById('empty-dashboard-state');
+
+                container.innerHTML = '';
+
+                if (!this.data.decks || this.data.decks.length === 0) {
+                    container.classList.add('hidden');
+                    emptyState.classList.remove('hidden');
+                    emptyState.classList.add('flex');
+                    return;
+                }
+
+                container.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+
+                this.data.decks.forEach(deck => {
+                    const wordCount = deck.words ? deck.words.length : 0;
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group flex flex-col justify-between h-48 relative overflow-hidden";
+                    card.onclick = () => this.navigate('deck', deck.id);
+
+                    card.innerHTML = `
+                        <div class="absolute -right-6 -top-6 w-24 h-24 bg-indigo-50/60 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out z-0"></div>
+                        <div class="relative z-10">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs">
+                                    <i class="fa-solid fa-layer-group"></i>
+                                </div>
+                                <button onclick="event.stopPropagation(); app.promptDeleteDeck('${deck.id}')" class="text-slate-300 hover:text-rose-500 transition-colors p-2 rounded-lg hover:bg-rose-50">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                            <h3 class="font-bold text-lg text-slate-800 line-clamp-1">${this.escapeHTML(deck.name)}</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">${wordCount} szókártya</p>
+                        </div>
+                        <div class="relative z-10 mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-semibold text-indigo-600">
+                            <span>Megnyitás</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+
+            renderQuickDeckSelector: function() {
+                const select = document.getElementById('quick-deck-select');
+                select.innerHTML = '';
+
+                this.data.decks.forEach(deck => {
+                    const opt = document.createElement('option');
+                    opt.value = deck.id;
+                    opt.textContent = deck.name;
+                    if (deck.id === this.currentDeckId) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            },
+
+            switchActiveDeckFromHeader: function(deckId) {
+                this.currentDeckId = deckId;
+                this.renderDeck();
+            },
+
+            handleCreateDeck: function(e) {
+                e.preventDefault();
+                const input = document.getElementById('new-deck-name');
+                const name = input.value.trim();
+
+                if (!name) return;
+
+                const newDeck = {
+                    id: 'deck_' + Date.now(),
+                    name: name,
+                    words: [],
+                    createdAt: Date.now()
+                };
+
+                this.data.decks.unshift(newDeck);
+                this.saveData();
+
+                input.value = '';
+                this.closeModal('create-deck-modal');
+                this.showToast("Új nyelvpár sikeresen létrehozva!", "success");
+                
+                this.navigate('deck', newDeck.id);
+            },
+
+            promptDeleteDeck: function(deckId) {
+                this.pendingDeleteDeckId = deckId;
+                const btn = document.getElementById('confirm-delete-btn');
+                btn.onclick = () => {
+                    this.executeDeleteDeck();
+                };
+                this.openModal('confirm-delete-modal');
+            },
+
+            executeDeleteDeck: function() {
+                if (!this.pendingDeleteDeckId) return;
+
+                this.data.decks = this.data.decks.filter(d => d.id !== this.pendingDeleteDeckId);
+                this.saveData();
+                this.closeModal('confirm-delete-modal');
+                this.showToast("Szótár törölve.", "success");
+
+                if (this.currentDeckId === this.pendingDeleteDeckId) {
+                    this.navigate('dashboard');
+                } else {
+                    this.renderDashboard();
+                }
+                this.pendingDeleteDeckId = null;
+            },
+
+            getActiveDeck: function() {
+                return this.data.decks.find(d => d.id === this.currentDeckId);
+            },
+
+            renderDeck: function() {
+                const deck = this.getActiveDeck();
+                if (!deck) {
+                    this.navigate('dashboard');
+                    return;
+                }
+
+                document.getElementById('deck-title').textContent = deck.name;
+                const wordCount = deck.words ? deck.words.length : 0;
+                document.getElementById('deck-stats').textContent = `${wordCount} kifejezés eltárolva`;
+
+                const practiceBtn = document.getElementById('btn-practice');
+                practiceBtn.disabled = wordCount === 0;
+
+                this.renderWordsList(deck.words || []);
+            },
+
+            renderWordsList: function(words) {
+                const list = document.getElementById('words-list');
+                const emptyState = document.getElementById('empty-words-state');
+                const searchTerm = document.getElementById('search-words').value.toLowerCase().trim();
+
+                list.innerHTML = '';
+
+                let filteredWords = words;
+                if (searchTerm) {
+                    filteredWords = words.filter(w =>
+                        w.term.toLowerCase().includes(searchTerm) ||
+                        w.def.toLowerCase().includes(searchTerm)
+                    );
+                }
+
+                if (filteredWords.length === 0) {
+                    list.classList.add('hidden');
+                    emptyState.classList.remove('hidden');
+                    emptyState.classList.add('flex');
+                    return;
+                }
+
+                list.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+
+                [...filteredWords].reverse().forEach((word) => {
+                    const row = document.createElement('div');
+                    row.className = "px-6 py-4 flex items-center justify-between hover:bg-slate-50/80 transition-colors group";
+                    row.innerHTML = `
+                        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-6">
+                            <div class="font-semibold text-slate-800">${this.escapeHTML(word.term)}</div>
+                            <div class="text-slate-600 text-sm sm:text-base">${this.escapeHTML(word.def)}</div>
+                        </div>
+                        <button onclick="app.deleteWord('${word.id}')" class="ml-4 w-8 h-8 rounded-full text-slate-300 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    `;
+                    list.appendChild(row);
+                });
+            },
+
+            filterWords: function() {
+                const deck = this.getActiveDeck();
+                if (deck) this.renderWordsList(deck.words || []);
+            },
+
+            handleAddWord: function(e) {
+                e.preventDefault();
+                const termInput = document.getElementById('word-term');
+                const defInput = document.getElementById('word-def');
+                const term = termInput.value.trim();
+                const def = defInput.value.trim();
+
+                if (!term || !def) return;
+
+                const deck = this.getActiveDeck();
+                if (!deck) return;
+
+                const newWord = {
+                    id: 'w_' + Date.now(),
+                    term: term,
+                    def: def,
+                    addedAt: Date.now()
+                };
+
+                deck.words.push(newWord);
+                this.saveData();
+
+                termInput.value = '';
+                defInput.value = '';
+                termInput.focus();
+
+                this.renderDeck();
+                this.showToast("Kifejezés hozzáadva!", "success");
+            },
+
+            deleteWord: function(wordId) {
+                const deck = this.getActiveDeck();
+                if (!deck) return;
+
+                deck.words = deck.words.filter(w => w.id !== wordId);
+                this.saveData();
+                this.renderDeck();
+                this.showToast("Szó törölve.", "success");
+            },
+
+            startPractice: function() {
+                const deck = this.getActiveDeck();
+                if (!deck || !deck.words || deck.words.length === 0) return;
+
+                // Shuffle practice words
+                this.practiceWords = [...deck.words].sort(() => Math.random() - 0.5);
+                this.currentCardIndex = 0;
+                this.isFlipped = false;
+
+                document.getElementById('card-lang-front').textContent = deck.name.split('-')[0]?.trim() || 'Idegen szó';
+                document.getElementById('card-lang-back').textContent = deck.name.split('-')[1]?.trim() || 'Fordítás';
+
+                document.getElementById('flashcard-inner').classList.remove('rotate-y-180');
+                document.getElementById('practice-controls').classList.remove('opacity-100', 'pointer-events-auto');
+                document.getElementById('practice-controls').classList.add('opacity-0', 'pointer-events-none');
+
+                document.getElementById('practice-end-screen').classList.add('hidden');
+                document.getElementById('flashcard-container').classList.remove('hidden');
+
+                this.navigate('practice');
+                this.renderCurrentCard();
+            },
+
+            renderCurrentCard: function() {
+                if (this.currentCardIndex >= this.practiceWords.length) {
+                    this.endPractice();
+                    return;
+                }
+
+                const word = this.practiceWords[this.currentCardIndex];
+                document.getElementById('card-term').textContent = word.term;
+                document.getElementById('card-def').textContent = word.def;
+
+                document.getElementById('practice-progress').textContent = `${this.currentCardIndex + 1} / ${this.practiceWords.length}`;
+            },
+
+            flipCard: function() {
+                if (this.isFlipped || this.currentCardIndex >= this.practiceWords.length) return;
+
+                this.isFlipped = true;
+                document.getElementById('flashcard-inner').classList.add('rotate-y-180');
+
+                const controls = document.getElementById('practice-controls');
+                controls.classList.remove('opacity-0', 'pointer-events-none');
+                controls.classList.add('opacity-100', 'pointer-events-auto');
+            },
+
+            nextCard: function(knewIt) {
+                this.isFlipped = false;
+                document.getElementById('flashcard-inner').classList.remove('rotate-y-180');
+
+                const controls = document.getElementById('practice-controls');
+                controls.classList.remove('opacity-100', 'pointer-events-auto');
+                controls.classList.add('opacity-0', 'pointer-events-none');
+
+                setTimeout(() => {
+                    this.currentCardIndex++;
+                    this.renderCurrentCard();
+                }, 200);
+            },
+
+            endPractice: function() {
+                document.getElementById('flashcard-container').classList.add('hidden');
+                document.getElementById('practice-controls').classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('practice-end-screen').classList.remove('hidden');
+            },
+
+            openModal: function(id) {
+                document.getElementById(id).classList.remove('hidden');
+                if (id === 'create-deck-modal') {
+                    setTimeout(() => document.getElementById('new-deck-name').focus(), 100);
+                }
+            },
+
+            closeModal: function(id) {
+                document.getElementById(id).classList.add('hidden');
+            },
+
+            showToast: function(message, type = 'success') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+
+                const bg = type === 'success' ? 'bg-slate-900' : 'bg-rose-600';
+                const icon = type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-exclamation text-white';
+
+                toast.className = `${bg} text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 toast-enter pointer-events-auto max-w-sm border border-slate-700/50`;
+                toast.innerHTML = `
+                    <i class="fa-solid ${icon}"></i>
+                    <span class="text-sm font-medium">${this.escapeHTML(message)}</span>
+                `;
+
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.classList.remove('toast-enter');
+                    toast.classList.add('toast-exit');
+                    setTimeout(() => toast.remove(), 300);
+                }, 2800);
+            },
+
+            escapeHTML: function(str) {
+                return str.replace(/[&<>'"]/g,
+                    tag => ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        "'": '&#39;',
+                        '"': '&quot;'
+                    }[tag])
+                );
+            }
+        };
+
+        // Initialize App on Window Load
+        window.onload = function() {
+            app.init();
+        };
+    </script>
 </body>
 </html>
